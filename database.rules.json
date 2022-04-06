@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{document=**} {
+    		function isSignedIn() {
+          return request.auth != null;
+        }
+
+        function isAdmin() {
+          return 'admin' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions 
+        }
+        
+        function isDeacon() {
+          return 'deacon' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions 
+        }
+        
+        function isCommittee() {
+          return 'committee' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions 
+        }
+        
+        function assignedTo() {
+        	return isSignedIn() && isDeacon() && (request.auth.uid in get(/databases/$(database)/documents/profiles/$(resource.id)).data.deaconIDs)
+        }
+        
+        function canAccess() {
+          return isSignedIn() && (isAdmin() || isCommittee() || assignedTo());
+        }
+
+        function ownDocument() {
+          return (resource.id == request.auth.uid);
+        }
+        
+        allow read, write: if canAccess() ;
+        allow read: if (isSignedIn() && ownDocument());
+
+    }
+    match /profiles/{document=**} {
+    		function isSignedIn() {
+          return request.auth != null;
+        }
+
+        function isAdmin() {
+          return 'admin' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions 
+        }
+
+        function isDeacon() {
+          return 'deacon' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions 
+        }
+        
+        function isCommittee() {
+          return 'committee' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions 
+        }
+        
+        function assignedTo() {
+        	return isSignedIn() && isDeacon() && (request.auth.uid in get(/databases/$(database)/documents/profiles/$(resource.id)).data.deaconIDs)
+        }
+        
+        function canAccess() {
+          return isSignedIn() && (isAdmin() || isCommittee() || assignedTo());
+        }
+        
+        function ownDocument() {
+          return (resource.id == request.auth.uid);
+        }
+
+        
+        allow read, write: if canAccess() || (isSignedIn() && ownDocument());
+
+    }
+    match /public/{document=**} {
+    		function isSignedIn() {
+          return request.auth != null;
+        }
+
+        function isAdmin() {
+          return 'admin' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions 
+        }
+
+        function canAccess() {
+          return isSignedIn() && isAdmin();
+        }
+        
+        allow read: if isSignedIn();
+        allow read, write: if canAccess();
+
+    }
+  }
+}
